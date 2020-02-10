@@ -7,12 +7,13 @@ from snn_dataset import SNNDataset
 # os.environ['CUDA_VISIBLE_DEVICES'] = "3"
 names = 'spiking_model'
 data_path = './dataset'
+preload = False
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("cuda" if torch.cuda.is_available() else "cpu")
-train_dataset = SNNDataset(data_path, size=200)
+train_dataset = SNNDataset(data_path, size=200, preload=preload)
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
-test_set = SNNDataset(data_path, size=200, train=False)
+test_set = SNNDataset(data_path, size=200, train=False, preload=preload)
 test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=0)
 
 best_acc = 0  # best test accuracy

@@ -13,8 +13,9 @@ def read_list(path):
     label_list = []
     with open(path, "r") as f:
         for line in f:
-            adept_list.append(line[0:-1])
+            adept_list.append(line)
             label_list.append(line.split(".")[0] + "_labels.csv")
+
     return adept_list, label_list
 
 
@@ -80,46 +81,64 @@ def read_labels(path):
 
 
 class SNNDataset(Dataset):
-    def __init__(self, root, batch_size=20, size=10000, train=True, timewindow=16000):
+    def __init__(self, root, batch_size=20, size=10000, train=True, timewindow=16000, preload=False):
         self.batch_size = batch_size
         self.size = size
         self.root = root
         self.timewindow = timewindow
-        if train:
-            self.adept_file_list, self.label_file_list = read_list(os.path.join(root, "trials_to_train.txt"))
+
+        if preload:
+            if train:
+                self.frames_list = torch.load(os.path.join(root, "train_frames.data"))
+                self.label_list = torch.load(os.path.join(root, "train_label.data"))
+            else:
+                self.frames_list = torch.load(os.path.join(root, "test_frames.data"))
+                self.label_list = torch.load(os.path.join(root, "test_label.data"))
         else:
-            self.adept_file_list, self.label_file_list = read_list(os.path.join(root, "trials_to_test.txt"))
+            if train:
+                self.adept_file_list, self.label_file_list = read_list(os.path.join(root, "trails_to_train.txt"))
+            else:
+                self.adept_file_list, self.label_file_list = read_list(os.path.join(root, "trails_to_test.txt"))
 
-        self.frames_list = []
-        self.label_list = []
+            self.frames_list = []
+            self.label_list = []
 
-        for i in range(len(self.adept_file_list)):
-            length, polarities, ys, xs, timestamps = read_aedat(os.path.join(root, self.adept_file_list[i]))
-            label_per, label_start, label_end = read_labels(os.path.join(root, self.label_file_list[i]))
-            event_p = 0
-            label_p = 0
-            window_num = int((label_end[label_p] - label_start[label_p]) / self.timewindow)
-            frames = torch.ShortTensor(window_num, 64, 64).fill_(0)
-            while timestamps[event_p] < label_end[-1]:
-                if timestamps[event_p] < label_start[label_p]:
-                    event_p += 1
-                    continue
-                elif timestamps[event_p] < label_start[label_p] + timewindow * window_num:
-                    if polarities[event_p] == 0:
-                        frames[int((timestamps[event_p] - label_start[label_p]) / self.timewindow), int(xs[event_p] / 2), int(ys[event_p] / 2)] = -1
+            for i in range(len(self.adept_file_list)):
+                length, polarities, ys, xs, timestamps = read_aedat(os.path.join(root, self.adept_file_list[i]))
+                label_per, label_start, label_end = read_labels(os.path.join(root, self.label_file_list[i]))
+                event_p = 0
+                label_p = 0
+                window_num = int((label_end[label_p] - label_start[label_p]) / self.timewindow)
+                frames = torch.ShortTensor(window_num, 64, 64).fill_(0)
+                while timestamps[event_p] < label_end[-1]:
+                    if timestamps[event_p] < label_start[label_p]:
+                        event_p += 1
+                        continue
+                    elif timestamps[event_p] < label_start[label_p] + timewindow * window_num:
+                        if polarities[event_p] == 0:
+                            frames[int((timestamps[event_p] - label_start[label_p]) / self.timewindow), int(
+                                xs[event_p] / 2), int(ys[event_p] / 2)] = -1
+                        else:
+                            frames[int((timestamps[event_p] - label_start[label_p]) / self.timewindow), int(
+                                xs[event_p] / 2), int(ys[event_p] / 2)] = 1
+                        event_p += 1
+                        continue
                     else:
-                        frames[int((timestamps[event_p] - label_start[label_p]) / self.timewindow), int(xs[event_p] / 2), int(ys[event_p] / 2)] = 1
-                    event_p += 1
-                    continue
-                else:
-                    self.frames_list.append(frames)
-                    self.label_list.append(label_per[label_p])
-                    label_p += 1
-                    if label_p < len(label_per):
-                        break
-                    window_num = int((label_end[label_p] - label_start[label_p]) / self.timewindow)
-                    frames = torch.ShortTensor(window_num, 64, 64).fill_(0)
-                    continue
+                        self.frames_list.append(frames)
+                        self.label_list.append(label_per[label_p])
+                        label_p += 1
+                        if label_p >= len(label_per):
+                            break
+                        window_num = int((label_end[label_p] - label_start[label_p]) / self.timewindow)
+                        frames = torch.ShortTensor(window_num, 64, 64).fill_(0)
+                        continue
+
+            if train:
+                torch.save(self.frames_list, os.path.join(root, "train_frames.data"))
+                torch.save(self.label_list, os.path.join(root, "train_label.data"))
+            else:
+                torch.save(self.frames_list, os.path.join(root, "test_frames.data"))
+                torch.save(self.label_list, os.path.join(root, "test_label.data"))
 
     def __getitem__(self, item):
         label_p = random.randint(0, len(self.label_list) - 1)
