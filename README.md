@@ -18,5 +18,6 @@ Change ```preload = True``` to use formatted data, data is saved at ```root/*.da
 
 ## Tips
 
-* snn project for gesture recognition trial文件中将测试数据集只用了四个，供我们本机运行
+* Change the trials_to_train.txt and trials_to_test.txt to control the size of training and test dataset.
+
 
