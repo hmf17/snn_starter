@@ -8,7 +8,7 @@ SNN moudle rebuild of *A Low Power, Fully Event-Based Gesture Recognition System
 
 Download the dataset from [here](http://research.ibm.com/dvsgesture/) and extract as ```dataset```.
 
-Raw dataset must be formatted before training and it may spend some time, you can download the formatted data from [here](https://cloud.tsinghua.edu.cn/d/a57761a2bc2945218eac/) for the first training.
+Raw dataset must be formatted before training and it may spend some time. You can download the formatted data from [here](https://cloud.tsinghua.edu.cn/d/a57761a2bc2945218eac/) for the first training.
 
 Ensure that all files (eg. ```*.adept```, ```*.csv```, ```trails_to_train.txt``` and ```trails_to_test.txt```) are **NOT** in any directory other than ```./dataset```.
 
