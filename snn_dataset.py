@@ -81,11 +81,12 @@ def read_labels(path):
 
 
 class SNNDataset(Dataset):
-    def __init__(self, root, batch_size=20, size=10000, train=True, timewindow=16000, preload=False):
+    def __init__(self, root, batch_size=20, size=10000, train=True, timewindow=16000, window=20, preload=False):
         self.batch_size = batch_size
         self.size = size
         self.root = root
         self.timewindow = timewindow
+        self.window = window
 
         if preload:
             if train:
@@ -144,9 +145,12 @@ class SNNDataset(Dataset):
 
     def __getitem__(self, item):
         label_p = random.randint(0, len(self.label_list) - 1)
-        frame_p = random.randint(0, self.frames_list[label_p].size()[0] - 7)
+        frame_p = random.randint(0, self.frames_list[label_p].size()[0] - 7 - self.window)
 
-        frames = self.frames_list[label_p][frame_p:frame_p + 6, :, :].clone()
+        frames = []
+        for i in range(self.window):
+            frames.append(self.frames_list[label_p][frame_p + i:frame_p + i + 6, :, :].clone())
+        frames = torch.stack(frames)
         label = self.label_list[label_p]
 
         return frames, label
