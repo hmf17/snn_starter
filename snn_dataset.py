@@ -13,7 +13,7 @@ def read_list(path):
     label_list = []
     with open(path, "r") as f:
         for line in f:
-            adept_list.append(line)
+            adept_list.append(line[0:-1])
             label_list.append(line.split(".")[0] + "_labels.csv")
 
     return adept_list, label_list
@@ -91,14 +91,16 @@ class SNNDataset(Dataset):
             if train:
                 self.frames_list = torch.load(os.path.join(root, "train_frames.data"))
                 self.label_list = torch.load(os.path.join(root, "train_label.data"))
+                print("Using preloaded data to train")
             else:
                 self.frames_list = torch.load(os.path.join(root, "test_frames.data"))
                 self.label_list = torch.load(os.path.join(root, "test_label.data"))
+                print("Using preloaded data to test")
         else:
             if train:
-                self.adept_file_list, self.label_file_list = read_list(os.path.join(root, "trails_to_train.txt"))
+                self.adept_file_list, self.label_file_list = read_list(os.path.join(root, "trials_to_train.txt"))
             else:
-                self.adept_file_list, self.label_file_list = read_list(os.path.join(root, "trails_to_test.txt"))
+                self.adept_file_list, self.label_file_list = read_list(os.path.join(root, "trials_to_test.txt"))
 
             self.frames_list = []
             self.label_list = []

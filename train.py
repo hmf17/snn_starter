@@ -4,17 +4,17 @@ import time
 import torch.utils.data
 from self_spiking_model import *
 from snn_dataset import SNNDataset
-# os.environ['CUDA_VISIBLE_DEVICES'] = "3"
 names = 'spiking_model'
 data_path = './dataset'
-preload = False
+preload = True
+size = 1000
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("cuda" if torch.cuda.is_available() else "cpu")
-train_dataset = SNNDataset(data_path, size=200, preload=preload)
+print("Using cuda" if torch.cuda.is_available() else "Using cpu")
+train_dataset = SNNDataset(data_path, size=size, preload=preload)
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
-test_set = SNNDataset(data_path, size=200, train=False, preload=preload)
-test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=0)
+test_dataset = SNNDataset(data_path, size=size, train=False, preload=preload)
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
 best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
@@ -36,12 +36,12 @@ for epoch in range(num_epochs):
 
         images = images.float().to(device)
         outputs = snn(images)
-        labels_ = torch.zeros(batch_size, 11).scatter_(1, labels.view(-1, 1), 1)
+        labels_ = torch.zeros(batch_size, 11).scatter_(1, labels.long().view(-1, 1)-1, 1)
         loss = criterion(outputs.cpu(), labels_)
         running_loss += loss.item()
         loss.backward()
         optimizer.step()
-        if (i+1)%100 == 0:
+        if (i+1)%10 == 0:
              print ('Epoch [%d/%d], Step [%d/%d], Loss: %.5f'
                     %(epoch+1, num_epochs, i+1, len(train_dataset)//batch_size,running_loss ))
              running_loss = 0
@@ -55,22 +55,22 @@ for epoch in range(num_epochs):
             inputs = inputs.to(device)
             optimizer.zero_grad()
             outputs = snn(inputs)
-            labels_ = torch.zeros(batch_size, 11).scatter_(1, targets.view(-1, 1), 1)
+            labels_ = torch.zeros(batch_size, 11).scatter_(1, targets.view(-1, 1)-1, 1)
             loss = criterion(outputs.cpu(), labels_)
             _, predicted = outputs.cpu().max(1)
             total += float(targets.size(0))
-            correct += float(predicted.eq(targets).sum().item())
+            correct += float(predicted.eq(targets-1).sum().item())
             if batch_idx %100 ==0:
                 acc = 100. * float(correct) / float(total)
                 print(batch_idx, len(test_loader),' Acc: %.5f' % acc)
 
-    print('Iters:', epoch,'\n\n\n')
+    print('Iters:', epoch+1)
     print('Test Accuracy of the model on the 10000 test images: %.3f' % (100 * correct / total))
     acc = 100. * float(correct) / float(total)
     acc_record.append(acc)
     if epoch % 5 == 0:
         print(acc)
-        print('Saving..')
+        print('Saving..','\n\n\n')
         state = {
             'net': snn.state_dict(),
             'acc': acc,
