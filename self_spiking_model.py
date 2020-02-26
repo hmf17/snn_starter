@@ -9,11 +9,11 @@ import torch.nn.modules
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-thresh = 0.1 # neuronal threshold
+thresh = 0.2 # neuronal threshold
 lens = 0.5 # hyper-parameters of approximate function
 decay = 0.2 # decay constants
 num_classes = 11
-batch_size  = 500
+batch_size  = 10 # parameter
 learning_rate = 1e-3
 num_epochs = 500 # max epoch
 
@@ -152,8 +152,9 @@ class SCNN(nn.Module):
         h1_mem = h1_spike = h1_sumspike = torch.zeros(batch_size, cfg_fc[0], device=device)
         h2_mem = h2_spike = h2_sumspike = torch.zeros(batch_size, cfg_fc[1], device=device)
 
-        for step in range(time_window): # simulation time steps
-            x = input
+        for step in range(time_window-1): # simulation time steps
+            x = input[:,step:step+1]
+            x = x.view(batch_size,6,64,64)
             x = x.float()
             c1_mem, c1_spike = mem_update(self.conv1, x, c1_mem, c1_spike)
             x = c1_spike

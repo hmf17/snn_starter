@@ -4,16 +4,20 @@ import time
 import torch.utils.data
 from self_spiking_model import *
 from snn_dataset import SNNDataset
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 names = 'spiking_model'
 data_path = './dataset'
 preload = True
-size = 1000
+size_to_train = 5000
+size_to_test = 1000
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using cuda" if torch.cuda.is_available() else "Using cpu")
-train_dataset = SNNDataset(data_path, size=size, preload=preload)
+print("batch_size = %d, thresh = %.2f " %(batch_size,thresh))
+train_dataset = SNNDataset(data_path, size=size_to_train, train=True, preload=preload)
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
-test_dataset = SNNDataset(data_path, size=size, train=False, preload=preload)
+test_dataset = SNNDataset(data_path, size=size_to_test, train=False, preload=preload)
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
 best_acc = 0  # best test accuracy
@@ -41,7 +45,7 @@ for epoch in range(num_epochs):
         running_loss += loss.item()
         loss.backward()
         optimizer.step()
-        if (i+1)%10 == 0:
+        if (i+1)%25 == 0:
              print ('Epoch [%d/%d], Step [%d/%d], Loss: %.5f'
                     %(epoch+1, num_epochs, i+1, len(train_dataset)//batch_size,running_loss ))
              running_loss = 0
@@ -60,7 +64,7 @@ for epoch in range(num_epochs):
             _, predicted = outputs.cpu().max(1)
             total += float(targets.size(0))
             correct += float(predicted.eq(targets-1).sum().item())
-            if batch_idx %100 ==0:
+            if (batch_idx+1) % 25 ==0:
                 acc = 100. * float(correct) / float(total)
                 print(batch_idx, len(test_loader),' Acc: %.5f' % acc)
 
@@ -68,7 +72,7 @@ for epoch in range(num_epochs):
     print('Test Accuracy of the model on the 10000 test images: %.3f' % (100 * correct / total))
     acc = 100. * float(correct) / float(total)
     acc_record.append(acc)
-    if epoch % 5 == 0:
+    if epoch % 20== 0:
         print(acc)
         print('Saving..','\n\n\n')
         state = {
