@@ -19,15 +19,14 @@ You can follow the instruction [here](https://www.everness.me/tech/事件相机�
 
 To run sim session, you need to specify your dataset:
 
-```python
-# sim/sim.py
-root = "/path/to/dataset"
+```bash
+python sim/sim.py /path/to/dataset
 ```
 
-Then you can simply run:
+After simulation completes, `gen_list.py` can be used to create a file list:
 
 ```bash
-python sim/sim.py
+python sim/gen_list.py /path/to/dataset
 ```
 
 ### Dataset

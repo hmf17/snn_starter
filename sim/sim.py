@@ -1,10 +1,11 @@
 import os
 import time
 import rosbag
+import sys
 
 bash_path = "./sim.sh"
 tmp_path = "/tmp/out.bag"
-root = "/share/dataset/training/final"
+root = sys.argv[1]
 rate = 20
 
 def bag2txt(bag_path, out_path):
