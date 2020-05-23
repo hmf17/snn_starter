@@ -2,22 +2,20 @@
 from __future__ import print_function
 import os
 import time
+import datetime
 import torch.utils.data
-import torch.nn as nn
-# from PWCSNet import *
 from PWCSNet import PWCSNet, batch_size, thresh
 from dataloader import *
+from Losses import *
 from tensorboardX import SummaryWriter
 
 # parameters
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
-names = 'spiking_model'
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+names = 'DVS_Optical_Flow-'
 data_path = './dataset'
 preload = True
-size_to_train = 5000
-size_to_test = 1000
-learning_rate = 0.1
-num_epochs = 1000
+learning_rate = 0.0001
+num_epochs = 200000
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using cuda" if torch.cuda.is_available() else "Using cpu")
 print("batch_size = %d, thresh = %.2f " %(batch_size,thresh))
@@ -26,8 +24,10 @@ print("batch_size = %d, thresh = %.2f " %(batch_size,thresh))
 train_dataset = DVSFlowDataset(data_path, train=True, preload=preload)
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
-test_dataset = DVSFlowDataset(data_path, train=False, preload=preload)
-test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+# test_dataset = DVSFlowDataset(data_path, train=False, preload=False)
+# test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+test_dataset = train_dataset
+test_loader = train_loader
 
 best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
@@ -35,74 +35,69 @@ acc_record = list([])
 loss_train_record = list([])
 loss_test_record = list([])
 
-model = PWCSNet()
+model = PWCSNet(training=True)
 model.to(device)
-criterion = nn.MSELoss()
+criterion = Train_loss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 writer = SummaryWriter()  # default ./run
 
 # Dacay learning_rate
-def lr_scheduler(optimizer, epoch, init_lr=0.1, lr_decay_epoch=50):
-    """Decay learning rate by a factor of 0.1 every lr_decay_epoch epochs."""
-    if epoch % lr_decay_epoch == 0 and epoch > 1:
+def lr_scheduler(optimizer, epoch):
+    """Decay learning rate by half every lr_update_list point."""
+    lr_update_list = [50000, 100000, 150000, 200000]
+    if epoch in lr_update_list:
         for param_group in optimizer.param_groups:
-            param_group['lr'] = param_group['lr'] * 0.1
+            param_group['lr'] = param_group['lr'] * 0.5
     return optimizer
 
 for epoch in range(num_epochs):
     running_loss = 0
     start_time = time.time()
-    for i, (images, labels) in enumerate(train_loader):
+    for i, (images, flow_gt) in enumerate(train_loader):
         model.zero_grad()
-        optimizer.zero_grad()
-
         images = images.float().to(device)
-        outputs = model(images)
-        labels_ = torch.zeros(batch_size, 11).scatter_(1, labels.long().view(-1, 1)-1, 1)
-        loss = criterion(outputs.cpu(), labels_)
-        # running_loss += loss.item()
-        loss.backward()
+        flow_pred = model(images)
+        train_loss = criterion(flow_pred, flow_gt)
+
+        optimizer.zero_grad()
+        train_loss.backward()
         optimizer.step()
-        writer.add_scalar('Train Loss', loss)
-        if (i+1)%25 == 0:
-            print ('Epoch [%d/%d], Step [%d/%d], Loss: %.5f'
-                %(epoch+1, num_epochs, i+1, len(train_dataset)//batch_size, loss.item()))
-            print('Time elasped:', time.time()-start_time)
-            # running_loss = 0
-    correct = 0
-    total = 0
-    optimizer = lr_scheduler(optimizer, epoch, learning_rate, 100)
+        writer.add_scalar('Train Loss', train_loss.data, epoch * len(train_dataset) + i * batch_size)
+        # change according to the input dataset
+        if (i+1)%10 == 0:
+            print ('Train Epoch [%d/%d], Step [%d/%d], Loss: %.5f'
+                %(epoch+1, num_epochs, i+1, len(train_dataset)/batch_size, train_loss.item()))
+            print('Time spent:', time.time()-start_time)
+
+    optimizer = lr_scheduler(optimizer, epoch)
+    writer.add_scalar('Train Spend Time', time.time()-start_time, epoch+1)
 
     # run test every epoch of train
+    test_EPE = 0
+    EPE_record = []
+    total = 0
     with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(test_loader):
-            inputs = inputs.to(device)
+        for batch_idx, (inputs, flow_gt) in enumerate(test_loader):
+            inputs = inputs.float().to(device)
             optimizer.zero_grad()
-            outputs = model(inputs)
-            labels_ = torch.zeros(batch_size, 11).scatter_(1, targets.view(-1, 1)-1, 1)
-            loss = criterion(outputs.cpu(), labels_)
-            _, predicted = outputs.cpu().max(1)
-            total += float(targets.size(0))
-            correct += float(predicted.eq(targets-1).sum().item())
-            if (batch_idx+1) % 25 ==0:
-                acc = 100. * float(correct) / float(total)
-                print(batch_idx, len(test_loader),' Acc: %.5f' % acc)
-                writer.add_scalar('accuracy',acc,global_step=epoch*(size_to_test/batch_size)+batch_idx)
+            flow_pred = model(inputs)
+            test_loss = criterion(flow_pred, flow_gt)
+            # test_EPE = EPE(flow_gt, flow_pred[0])
+            if (batch_idx+1) % 10 == 0:
+                print(batch_idx, len(test_loader),' Loss: %.5f' % test_loss)
+        writer.add_scalar('Test Loss', test_loss, epoch)
+        # writer.add_scalar('Test EPE', test_EPE, epoch)
 
-    print('Iters:', epoch+1)
-    print('Test Accuracy of the model on the 10000 test images: %.3f' % (100 * correct / total))
-    acc = 100. * float(correct) / float(total)
-    acc_record.append(acc)
-    if epoch % 20== 0:
-        print(acc)
-        print('Saving..','\n\n\n')
+    # EPE_record.append(test_EPE)
+    if epoch % 100 == 0:
+        # print(EPE)
+        print('Saving..', '\n\n\n')
         state = {
             'net': model.state_dict(),
-            'acc': acc,
             'epoch': epoch,
-            'acc_record': acc_record,
+            # 'EPE_record': EPE_record,
         }
         if not os.path.isdir('checkpoint'):
             os.mkdir('checkpoint')
-        torch.save(state, './checkpoint/ckpt' + names + '.t7')
-        best_acc = acc
+        torch.save(state, './checkpoint/ckpt_' + names + '.t7')
+        torch.save(model.state_dict(), './checkpoint/model_' + names + datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + '.t7')
