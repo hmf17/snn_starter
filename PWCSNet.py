@@ -14,7 +14,7 @@ os.environ['PYTHON_EGG_CACHE'] = 'tmp/' # a writable directory
 warp_parameter = [0, 5, 2.5, 1.25, 0.625, 0]
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 batch_size = 4 # 由于SCNN定义的问题，可能需要用到小批量的训练集合
-time_windows = 4
+time_windows = 5
 
 # net
 
