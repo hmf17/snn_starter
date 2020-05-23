@@ -53,14 +53,16 @@ def read_flow(path):
 #
 #    return
 #    ShortTensor(width, height)
-def read_dvs(path):
-    if path == "":
-        raise Exception(str("Invalid path: %s" % path))
+def read_dvs(path1, path2, timewindow):
+    if path1 == "" or path2 == "":
+        raise Exception(str("Invalid path: %s, %s" % (path1, path2)))
 
-    f = open(path, 'r')
-    r = csv.reader(f)
-
+    dvs_list = []
     dvs = None
+    end = 0
+
+    f = open(path1, 'r')
+    r = csv.reader(f)
 
     for line in r:
         if r.line_num == 1:
@@ -68,12 +70,38 @@ def read_dvs(path):
             height = int(line[1])
             dvs = torch.ShortTensor(width, height).fill_(0)
         else:
+            if r.line_num == 2:
+                end = (int(line[0])/50000000)*50000000 + timewindow
+            if int(line[0]) > end:
+                dvs_list.append(dvs)
+                dvs = torch.ShortTensor(width, height).fill_(0)
+                end += timewindow
             if line[3] == 'True':
                 dvs[int(line[1]), int(line[2])] = 1
             else:
                 dvs[int(line[1]), int(line[2])] = -1
 
-    return dvs
+    f.close()
+
+    f = open(path2, 'r')
+    r = csv.reader(f)
+
+    for line in r:
+        if r.line_num != 1:
+            if int(line[0]) > end:
+                dvs_list.append(dvs)
+                dvs = torch.ShortTensor(width, height).fill_(0)
+                end += timewindow
+            if line[3] == 'True':
+                dvs[int(line[1]), int(line[2])] = 1
+            else:
+                dvs[int(line[1]), int(line[2])] = -1
+
+    f.close()
+
+    dvs_list.append(dvs)
+
+    return dvs_list
 
 
 #    Read .csv list file
@@ -106,11 +134,13 @@ def read_list(path):
 #   Label
 #   flow_data FloatTensor(width, height, 2)
 class DVSFlowDataset(Dataset):
-    def __init__(self, root, train=True, preload=False):
+    def __init__(self, root, window, train=True, preload=False):
         if train:
             self.root = os.path.join(root, "training")
         else:
             self.root = os.path.join(root, "test")
+
+        self.window = window
 
         if preload:
             self.dvs = torch.load(os.path.join(self.root, "dvs.data"))
@@ -127,9 +157,7 @@ class DVSFlowDataset(Dataset):
                     flow_path = os.path.join(self.root, "flow", s[0], str("frame_%04d.flo" % (i+1)))
                     if os.path.exists(dvs_1_path) and os.path.exists(dvs_2_path) and os.path.exists(flow_path):
                         print(dvs_1_path, dvs_2_path, flow_path)
-                        dvs_1 = read_dvs(dvs_1_path)
-                        dvs_2 = read_dvs(dvs_2_path)
-                        dvs = torch.stack([dvs_1, dvs_2])
+                        dvs = torch.stack(read_dvs(dvs_1_path, dvs_2_path, 100000000/(self.window+1)))
                         flow = read_flow(flow_path)
                         self.dvs.append(dvs)
                         self.flow.append(flow)
@@ -141,7 +169,12 @@ class DVSFlowDataset(Dataset):
         return len(self.dvs)
 
     def __getitem__(self, index):
-        return self.dvs[index], self.flow[index]
+        dvs = []
+        for i in range(self.window):
+            dvs.append(self.dvs[index][i:i+2])
+        dvs = torch.stack(dvs)
+
+        return dvs, self.flow[index]
 
 
 
