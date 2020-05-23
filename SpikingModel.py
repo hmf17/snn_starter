@@ -1,10 +1,10 @@
 import torch.autograd.function
 
-thresh = 0.25 # neuronal threshold
-lens = 0.5 # hyper-parameters of approximate function
-decay = 0.2 # decay constants
+thresh = 0.25   # neuronal threshold
+lens = 0.5      # hyper-parameters of approximate function
+decay = 0.2     # decay constants
 
-class ActFun(torch.autograd.function):
+class ActFun(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input):
         ctx.save_for_backward(input)
