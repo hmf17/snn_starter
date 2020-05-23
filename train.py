@@ -4,7 +4,7 @@ import os
 import time
 import datetime
 import torch.utils.data
-from PWCSNet import PWCSNet, batch_size, thresh
+from PWCSNet import PWCSNet, batch_size, thresh, time_windows
 from dataloader import *
 from Losses import *
 from tensorboardX import SummaryWriter
@@ -21,13 +21,11 @@ print("Using cuda" if torch.cuda.is_available() else "Using cpu")
 print("batch_size = %d, thresh = %.2f " %(batch_size,thresh))
 
 # dataset
-train_dataset = DVSFlowDataset(data_path, train=True, preload=preload)
+train_dataset = DVSFlowDataset(data_path, window=time_windows, train=True, preload=preload)
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
-# test_dataset = DVSFlowDataset(data_path, train=False, preload=False)
-# test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
-test_dataset = train_dataset
-test_loader = train_loader
+test_dataset = DVSFlowDataset(data_path, window=time_windows, train=False, preload=False)
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
 best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
