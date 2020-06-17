@@ -58,7 +58,7 @@ class Train_loss(nn.Module):
         avg_pool = nn.AvgPool2d(kernel_size=2, padding=0, stride=2)
         # model outputs a quarter resolution
         flow_gt_toCount = avg_pool(flow_gt_toCount)
-        flow_gt_toCount = avg_pool(flow_gt_toCount)
+        # use zeropadding to fit the input image size
         Padding_list = [3, 0, 0, 0, 0]
 
         for level in range(num_of_pyr):
