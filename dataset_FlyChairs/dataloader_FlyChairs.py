@@ -5,16 +5,25 @@ from torch.utils.data import Dataset
 
 
 class DVSDataset(Dataset):
-    def __init__(self, root, train=True):
+    def __init__(self, root, size, time_window=5, train=True):
         if train:
-            self.flow_list = torch.load(os.path.join(root, "flow.train.data"))
-            self.events_list = torch.load(os.path.join(root, "events.train.data"))
+            path = os.path.join(root, "train")
         else:
-            self.flow_list = torch.load(os.path.join(root, "flow.test.data"))
-            self.events_list = torch.load(os.path.join(root, "events.test.data"))
+            path = os.path.join(root, "test")
+        self.flow_path = os.path.join(path, "flow")
+        self.events_path = os.path.join(path, "events")
+        self.size = size
+        self.time_window = time_window
 
     def __len__(self):
-        return len(self.flow_list)
+        return self.size
 
     def __getitem__(self, index):
-        return self.events_list[index], self.flow_list[index]
+        name = '{:0=5}'.format(index)
+        flow = torch.load(os.path.join(self.flow_path, name))
+        events_raw = torch.load(os.path.join(self.events_path, name))
+        events = torch.zeros([self.time_window, 2, 1024, 436], dtype=torch.int8)
+        for i in range(self.time_window):
+            events[i, 0, :, :] = events_raw[:, :, i]
+            events[i, 1, :, :] = events_raw[:, :, i+1]
+        return events, flow

@@ -1,7 +1,7 @@
 from torch.utils.data import DataLoader
 import torch
 
-from dataloader_sintel import DVSFlowDataset
+from dataset_SIntel.dataloader_sintel import DVSFlowDataset
 
 if __name__ == '__main__':
     dataset = DVSFlowDataset("dataset", 5, train=False, preload=False)

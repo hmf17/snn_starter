@@ -8,11 +8,17 @@ import torch
 
 
 root = "D:\\Dataset\\train"
-total = 25
+total = 10
+time_window = 5
 
 t0_root = os.path.join(root, "t_0")
 t1_root = os.path.join(root, "t_1")
 flow_root = os.path.join(root, "train_flow")
+train_flow_root = os.path.join(root, "train", "flow")
+train_events_root = os.path.join(root, "train", "events")
+test_flow_root = os.path.join(root, "test", "flow")
+test_events_root = os.path.join(root, "test", "events")
+
 
 
 def read_image(name):
@@ -83,18 +89,18 @@ def resize(origin, dim):
     return new
 
 
-def gen_event(td, time_window):
+def gen_event(td):
     e_map = td[:, :, 0] / .15
-    event_map = np.zeros((1024, 436, time_window))
+    event_map = np.zeros((1024, 436, time_window + 1))
 
-    num_list = range(time_window)
+    num_list = range(time_window + 1)
     for y in range(436):
         for x in range(1024):
             br = e_map[x, y]
             event_num = int(abs(br))
             if event_num == 0:
                 continue
-            elif event_num >= time_window:
+            elif event_num >= time_window + 1:
                 if br > 0:
                     event_map[x, y] = 1
                 else:
@@ -123,27 +129,33 @@ def gen_data(index):
 
     br = resize(t1 - t0, 1)
     flow = resize(flow, 2)
-    events = gen_event(br, 5)
+    events = gen_event(br)
     return flow, events
 
 
 if __name__ == '__main__':
-    events_train_list = []
-    flow_train_list = []
-    events_test_list = []
-    flow_test_list = []
+    if not os.path.exists(train_flow_root):
+        os.makedirs(train_flow_root)
+    if not os.path.exists(train_events_root):
+        os.makedirs(train_events_root)
+    if not os.path.exists(test_flow_root):
+        os.makedirs(test_flow_root)
+    if not os.path.exists(test_events_root):
+        os.makedirs(test_events_root)
+    train_num = 0
+    test_num = 0
+
     for i in progressbar.progressbar(range(total)):
         flow, events = gen_data(i)
         flow = torch.tensor(flow, dtype=torch.float)
         events = torch.tensor(events, dtype=torch.int8)
         if i % 10 == 0:
-            events_test_list.append(events)
-            flow_test_list.append(flow)
+            name = '{:0=5}'.format(test_num)
+            test_num += 1
+            torch.save(flow, os.path.join(test_flow_root, name))
+            torch.save(events, os.path.join(test_events_root, name))
         else:
-            events_train_list.append(events)
-            flow_train_list.append(flow)
-
-    torch.save(events_train_list, os.path.join(root, "events.train.data"))
-    torch.save(flow_train_list, os.path.join(root, "flow.train.data"))
-    torch.save(events_test_list, os.path.join(root, "events.test.data"))
-    torch.save(flow_test_list, os.path.join(root, "flow.test.data"))
+            name = '{:0=5}'.format(train_num)
+            train_num += 1
+            torch.save(flow, os.path.join(train_flow_root, name))
+            torch.save(events, os.path.join(train_events_root, name))
