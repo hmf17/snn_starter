@@ -7,13 +7,13 @@ import os
 import torch
 
 
-root = "D:\\Dataset\\train"
-total = 10
+root = "/data/dataset/dataset/hmf/ChairsSDHom/data/train"
+total = 3000
 time_window = 5
 
-t0_root = os.path.join(root, "t_0")
-t1_root = os.path.join(root, "t_1")
-flow_root = os.path.join(root, "train_flow")
+t0_root = os.path.join(root, "t0")
+t1_root = os.path.join(root, "t1")
+flow_root = os.path.join(root, "flow")
 train_flow_root = os.path.join(root, "train", "flow")
 train_events_root = os.path.join(root, "train", "events")
 test_flow_root = os.path.join(root, "test", "flow")
@@ -142,10 +142,12 @@ if __name__ == '__main__':
         os.makedirs(test_flow_root)
     if not os.path.exists(test_events_root):
         os.makedirs(test_events_root)
-    train_num = 0
-    test_num = 0
 
-    for i in progressbar.progressbar(range(total)):
+    train_num = 129
+    test_num = 15
+    record_checkpoint = train_num + test_num
+    bar = progressbar.ProgressBar()
+    for i in bar(range(record_checkpoint, total)):
         flow, events = gen_data(i)
         flow = torch.tensor(flow, dtype=torch.float)
         events = torch.tensor(events, dtype=torch.int8)
@@ -154,8 +156,10 @@ if __name__ == '__main__':
             test_num += 1
             torch.save(flow, os.path.join(test_flow_root, name))
             torch.save(events, os.path.join(test_events_root, name))
+            print("Saving %s/%s test events and flow data" %(test_num, total))
         else:
             name = '{:0=5}'.format(train_num)
             train_num += 1
             torch.save(flow, os.path.join(train_flow_root, name))
             torch.save(events, os.path.join(train_events_root, name))
+            print("Saving %s/%s train events and flow data" % (train_num, total))
