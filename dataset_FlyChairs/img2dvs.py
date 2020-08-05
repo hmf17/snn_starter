@@ -143,8 +143,8 @@ if __name__ == '__main__':
     if not os.path.exists(test_events_root):
         os.makedirs(test_events_root)
 
-    train_num = 129
-    test_num = 15
+    train_num = 129 # TODO: you should change this parameter according to the precessed number
+    test_num = 15   # TODO: you should change this parameter according to the precessed number
     record_checkpoint = train_num + test_num
     bar = progressbar.ProgressBar()
     for i in bar(range(record_checkpoint, total)):
