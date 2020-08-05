@@ -7,13 +7,14 @@ from SpikingModel import *
 from WarpingLayer import *
 from utils import *
 import numpy as np
-from torchsummary import summary
+# from torchsummary import summary
 
 # parameter
 os.environ['PYTHON_EGG_CACHE'] = 'tmp/' # a writable directory
 warp_parameter = [0, 5, 2.5, 1.25, 0.625, 0]
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-batch_size = 4 # 由于SCNN定义的问题，可能需要用到小批量的训练集合
+batch_size = 9 # 由于SCNN定义的问题，可能需要用到小批量的训练集合
+total_batch_size = batch_size
 time_windows = 5
 
 # net
@@ -126,10 +127,11 @@ class PWCSNet(nn.Module):
                     m.bias.data.zero_()
 
     def forward(self,x):
-        im1 = x[:,:1,:,:]
-        im2 = x[:,1:,:,:]
+        data1 = x[:,:,:1,:,:]
+        data2 = x[:,:,1:,:,:]
         # the pyramid extractor use SCNN model
         ######
+        batch_size = (x.shape)[0]
         #1
         im11a_mem = im11a_spike = torch.zeros(batch_size, 16, 512, 218, device=device)
         im11aa_mem = im11aa_spike = torch.zeros(batch_size, 16, 512, 218, device=device)
@@ -179,6 +181,9 @@ class PWCSNet(nn.Module):
         c26_sumspike = c26_mem = c26_spike = torch.zeros(batch_size, 196, 16, 7, device=device)
 
         for step in range(time_windows):
+            im1 = data1[:,step,:,:]
+            im2 = data2[:,step,:,:]
+
             im11a_mem, im11a_spike = mem_update(self.conv1a, im1, im11a_mem, im11a_spike)
             im11aa_mem, im11aa_spike = mem_update(self.conv1aa, im11a_spike, im11aa_mem, im11aa_spike)
             c11_mem, c11_spike = mem_update(self.conv1b, im11aa_spike, c11_mem, c11_spike)
@@ -332,8 +337,11 @@ class PWCSNet(nn.Module):
         x = torch.cat((self.conv2_4(x), x),1)
         flow2 = self.predict_flow2(x)
 
+        del c11, c21, c12, c22, c13, c23, c14, c24, c15, c25, c16, c26
+        del up_flow6, up_flow5, up_flow4, up_flow3, up_feat6, up_feat5, up_feat4, up_feat3
         # context network
-        x = self.dc_conv4(self.dc_conv3(self.dc_conv2(self.dc_conv1(x))))
+        x = self.dc_conv2(self.dc_conv1(x))
+        x = self.dc_conv4(self.dc_conv3(x))
         flow2 = flow2 + self.dc_conv7(self.dc_conv6(self.dc_conv5(x)))
 
         if self.training:
@@ -345,4 +353,4 @@ if __name__ == '__main__':
     model = PWCSNet(md=4).to(device)
     # use torchsummary package tool to view the structure of model
     # to run this file, you should set batch_size to 2
-    summary(model, (2, 1024, 436))
+    # summary(model, (2, 1024, 436))
