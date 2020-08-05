@@ -54,10 +54,11 @@ def lr_scheduler(optimizer, epoch):
 
 if retrained_flag:
     print("Using pretrained model")
-    # input the pretrained model direcory
+    # input the direcory of pretrained model
     log_dir = 'pretrained_model/epoch_600/ckpt_DVS_Optical_Flow-2020-05-30-18-14-49.t7'
     checkpoint = torch.load(log_dir)
     model.load_state_dict(checkpoint['net'])
+    optimizer.load_state_dict(checkpoint['optimizer'])
     start_epoch = checkpoint['epoch']
 
 for epoch in range(num_epochs):
